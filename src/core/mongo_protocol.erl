@@ -1,4 +1,5 @@
 -module(mongo_protocol).
+%% -compile([{parse_transform, lager_transform}]).
 -export([
 	dbcoll/2,
 	put_message/3,
@@ -65,8 +66,24 @@ put_message(_Db, #killcursor{cursorids = Cids}, _RequestId) ->
 	?put_int32(0),
 	?put_int32(length(Cids)),
 	<<<<?put_int64(Cid)>> || Cid <- Cids>>/binary>>;
-put_message(Db, #'query'{tailablecursor = TC, slaveok = SOK, nocursortimeout = NCT, awaitdata = AD,
+%%------------------
+%% 解决认证的单库限制问题
+%%------------------
+put_message(Db, Query = #'query'{tailablecursor = TC, slaveok = SOK, nocursortimeout = NCT, awaitdata = AD,
+	collection = Coll, skip = Skip, batchsize = Batch, selector = Sel = {authenticate,_,_,_,_,_,_,_}, projector = Proj}, _RequestId) ->
+	%% lager:debug("_74:~n\t~p",[Query]),
+	<<?put_header(?QueryOpcode),
+	?put_bits32(0, 0, bit(AD), bit(NCT), 0, bit(SOK), bit(TC), 0),
+	%% (bson_binary:put_cstring(dbcoll(Db, Coll)))/binary,
+	(bson_binary:put_cstring(dbcoll(<<"admin">>, Coll)))/binary,
+	?put_int32(Skip),
+	?put_int32(Batch),
+	(bson_binary:put_document(Sel))/binary,
+	(case Proj of [] -> <<>>; _ -> bson_binary:put_document(Proj) end)/binary>>;
+%%-------------------
+put_message(Db, Query = #'query'{tailablecursor = TC, slaveok = SOK, nocursortimeout = NCT, awaitdata = AD,
 	collection = Coll, skip = Skip, batchsize = Batch, selector = Sel, projector = Proj}, _RequestId) ->
+	%% lager:debug("_70:~n\t~p",[Query]),
 	<<?put_header(?QueryOpcode),
 	?put_bits32(0, 0, bit(AD), bit(NCT), 0, bit(SOK), bit(TC), 0),
 	(bson_binary:put_cstring(dbcoll(Db, Coll)))/binary,

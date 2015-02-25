@@ -2,6 +2,7 @@
 %% and then pass it to all functions
 
 -module(mongo).
+%% -compile([{parse_transform, lager_transform}]).
 -export([
 	auth/3,
 	connect/3,
@@ -175,6 +176,7 @@ command(Connection, Command) ->
 		collection = '$cmd',
 		selector = Command
 	}),
+	%% lager:debug("_178:~n\t~p~n\t~p",[Doc,Command]),
 	mc_connection_man:process_reply(Doc, Command).
 
 
