@@ -1,4 +1,5 @@
 -module(mc_worker).
+-compile([{parse_transform, lager_transform}]).
 -behaviour(gen_server).
 
 -include("mongo_protocol.hrl").
@@ -29,10 +30,17 @@ start_link(Service, Options) ->
 
 %% @hidden
 init([{Host, Port, State}, Options]) ->
-	{ok, Socket} = connect_to_database(Host, Port, Options),
-	process_flag(trap_exit, true),
-	RequestStorage = ets:new(requests, [private]),  %TODO heir me? (in case of fall one request - others to be saved)
-	{ok, #state{socket = Socket, ets = RequestStorage, buffer = <<>>, conn_state = State}}.
+    %% {ok, Socket} = connect_to_database(Host, Port, Options),
+    {ok, Socket} = case connect_to_database(Host, Port, Options) of
+                       {ok,Socket_a} ->
+                           {ok,Socket_a};
+                       {error,econnrefused} ->
+                           lager:critical("mongo_connection_refused"),
+                           throw(?MONGO_CONNECTION_REFUSED)
+                   end,
+    process_flag(trap_exit, true),
+    RequestStorage = ets:new(requests, [private]),  %TODO heir me? (in case of fall one request - others to be saved)
+    {ok, #state{socket = Socket, ets = RequestStorage, buffer = <<>>, conn_state = State}}.
 
 %% @hidden
 handle_call(NewState = #conn_state{}, _, State = #state{conn_state = OldState}) ->  % update state, return old

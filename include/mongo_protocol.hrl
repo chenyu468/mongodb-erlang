@@ -80,3 +80,5 @@
 	startingfrom :: integer(),
 	documents :: [bson:document()]
 }).
+
+-define(MONGO_CONNECTION_REFUSED,mongo_connection_refused).
